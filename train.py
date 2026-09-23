@@ -182,6 +182,13 @@ def train_ddpg(
             # Exponential decay of exploration noise towards minimum
             noise_std = max(cfg.noise_end, noise_std * cfg.noise_decay)
 
+            if episode % 5 == 0:
+                print(
+                    f"  [Train] Ep {episode:4d}/{max_episodes} | Steps: {ep_steps:4d} | "
+                    f"Reward: {ep_reward:7.1f} | Noise: {noise_std:.4f} | Total: {total_steps:6d}",
+                    flush=True
+                )
+
             # Periodic deterministic evaluation
             if episode % eval_interval == 0:
                 mean_eval_rew, mean_eval_steps = evaluate_policy(eval_env, agent, num_episodes=3)
@@ -190,23 +197,27 @@ def train_ddpg(
                 elapsed = time.time() - start_time
 
                 print(
-                    f"Ep {episode:4d} | Noise: {noise_std:.4f} | "
+                    f"\n>>> EVAL Ep {episode:4d} | Noise: {noise_std:.4f} | "
                     f"Eval Reward: {mean_eval_rew:8.1f} | Eval Steps: {mean_eval_steps:4.0f} | "
-                    f"Total Steps: {total_steps:7d} | Elapsed: {elapsed:6.1f}s"
+                    f"Total Steps: {total_steps:7d} | Elapsed: {elapsed:6.1f}s",
+                    flush=True
                 )
+
+                # Always update latest weights
+                agent.save_weights(checkpoint_dir=checkpoint_dir, prefix="latest")
 
                 # Save best model
                 if mean_eval_rew > best_eval_reward:
                     best_eval_reward = mean_eval_rew
                     agent.save_weights(checkpoint_dir=checkpoint_dir, prefix="best")
-                    print(f"  >>> [Checkpoint] New best model saved with evaluation reward {best_eval_reward:.1f}!")
+                    print(f"  >>> [Checkpoint] New best model saved with evaluation reward {best_eval_reward:.1f}!\n", flush=True)
 
                 # Early stopping if target good reward threshold reached
                 if mean_eval_rew >= target_reward:
-                    print("\n" + "*" * 70)
-                    print(f"  SUCCESS: TARGET REWARD OF {target_reward} REACHED AT EPISODE {episode}!")
-                    print(f"  Final Evaluation Reward: {mean_eval_rew:.1f} (Balanced for {mean_eval_steps:.0f} steps)")
-                    print("*" * 70 + "\n")
+                    print("\n" + "*" * 70, flush=True)
+                    print(f"  SUCCESS: TARGET REWARD OF {target_reward} REACHED AT EPISODE {episode}!", flush=True)
+                    print(f"  Final Evaluation Reward: {mean_eval_rew:.1f} (Balanced for {mean_eval_steps:.0f} steps)", flush=True)
+                    print("*" * 70 + "\n", flush=True)
                     solved = True
                     break
 
