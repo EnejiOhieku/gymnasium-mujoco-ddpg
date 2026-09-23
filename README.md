@@ -7,7 +7,15 @@ An implementation of the **Deep Deterministic Policy Gradient (DDPG)** reinforce
 | Short Name | Gymnasium ID | Task | State Dim | Action Dim | Network | Target Reward |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
 | `pendulum` | InvertedDoublePendulum-v5 | Balance a double pendulum on a cart | 9 | 1 | 256×256 | 5,000 |
-| `ant` | Ant-v5 | Teach a 4-legged spider to walk | 105 | 8 | 400×300 | 3,000 |
+| `ant` | Ant-v5 | Teach a 4-legged spider to walk | 105 | 8 | 400×300 | 2,500 |
+
+---
+
+## 🎬 Demonstrations
+
+| Inverted Double Pendulum (9,357 Reward) | Ant Quadruped Locomotion (1,680+ Reward) |
+| :---: | :---: |
+| ![Double Pendulum Balance](balancing_demo.gif) | ![Ant Walking Spider](ant_walking.gif) |
 
 ---
 
