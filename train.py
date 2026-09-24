@@ -26,26 +26,32 @@ def evaluate_policy(env, agent: DDPGAgent, num_episodes: int = 3):
     """Run deterministic evaluation episodes without exploration noise."""
     eval_rewards = []
     eval_steps = []
+    eval_distances = []
 
     for _ in range(num_episodes):
-        obs, _ = env.reset()
+        obs, info = env.reset()
+        x_start = info.get("x_position", 0.0) if isinstance(info, dict) else 0.0
+        x_end = x_start
         ep_reward = 0.0
         steps = 0
         done = False
 
         while not done:
             action = agent.select_action(obs, noise=0.0)
-            next_obs, reward, terminated, truncated, _ = env.step(action)
+            next_obs, reward, terminated, truncated, step_info = env.step(action)
             done = terminated or truncated
 
             obs = next_obs
             ep_reward += reward
             steps += 1
+            if isinstance(step_info, dict) and "x_position" in step_info:
+                x_end = step_info["x_position"]
 
         eval_rewards.append(ep_reward)
         eval_steps.append(steps)
+        eval_distances.append(x_end - x_start)
 
-    return float(np.mean(eval_rewards)), float(np.mean(eval_steps))
+    return float(np.mean(eval_rewards)), float(np.mean(eval_steps)), float(np.mean(eval_distances))
 
 
 def save_plot(eval_episodes, eval_rewards, train_rewards, env_name: str, output_path="learning_curve.png"):
@@ -191,7 +197,7 @@ def train_ddpg(
 
             # Periodic deterministic evaluation
             if episode % eval_interval == 0:
-                mean_eval_rew, mean_eval_steps = evaluate_policy(eval_env, agent, num_episodes=3)
+                mean_eval_rew, mean_eval_steps, mean_eval_dist = evaluate_policy(eval_env, agent, num_episodes=3)
                 eval_episodes.append(episode)
                 eval_rewards.append(mean_eval_rew)
                 elapsed = time.time() - start_time
@@ -199,7 +205,7 @@ def train_ddpg(
                 print(
                     f"\n>>> EVAL Ep {episode:4d} | Noise: {noise_std:.4f} | "
                     f"Eval Reward: {mean_eval_rew:8.1f} | Eval Steps: {mean_eval_steps:4.0f} | "
-                    f"Total Steps: {total_steps:7d} | Elapsed: {elapsed:6.1f}s",
+                    f"Fwd Dist: {mean_eval_dist:+.2f}m | Total Steps: {total_steps:7d} | Elapsed: {elapsed:6.1f}s",
                     flush=True
                 )
 
