@@ -36,11 +36,49 @@ from ddpg_agent import DDPGAgent
 from env_config import get_env_config, EnvConfig, VALID_ENV_NAMES
 
 
+class AntUprightWrapper(gym.Wrapper):
+    """
+    Punishes the Ant for falling upside-down or collapsing.
+    - Monitors the torso rotation matrix: if up-vector z-component < min_up_z (tilted past ~75 deg or upside down),
+      immediately terminates the episode and applies fall_penalty.
+    - If the episode terminates unhealthily (e.g. torso height drops below 0.2m), also applies fall_penalty.
+    """
+
+    def __init__(self, env, fall_penalty: float = 100.0, min_up_z: float = 0.25):
+        super().__init__(env)
+        self.fall_penalty = fall_penalty
+        self.min_up_z = min_up_z
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        try:
+            # Torso local z-axis (pointing out of the spider's back) in world coordinates:
+            # xmat is 3x3 rotation matrix: xmat[2, 2] is the z-component of the local z-axis.
+            torso_up_z = float(self.unwrapped.data.body("torso").xmat.reshape(3, 3)[2, 2])
+        except Exception:
+            torso_up_z = 1.0
+
+        is_upside_down = torso_up_z < self.min_up_z
+
+        if is_upside_down:
+            terminated = True
+            reward -= self.fall_penalty
+            info["fallen_upside_down"] = True
+        elif terminated and not truncated:
+            reward -= self.fall_penalty
+            info["fallen_unhealthy"] = True
+
+        info["torso_up_z"] = torso_up_z
+        return obs, reward, terminated, truncated, info
+
+
 def make_environment(env_config: EnvConfig, render_mode: str = "human"):
     """Create Gymnasium environment from config with version fallback."""
     for env_id in env_config.env_ids:
         try:
             env = gym.make(env_id, render_mode=render_mode, **env_config.env_kwargs)
+            if "Ant" in env_id:
+                env = AntUprightWrapper(env, fall_penalty=100.0, min_up_z=0.25)
             return env, env_id
         except Exception:
             continue
